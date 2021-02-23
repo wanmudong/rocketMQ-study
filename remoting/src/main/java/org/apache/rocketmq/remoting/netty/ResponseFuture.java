@@ -32,8 +32,10 @@ public class ResponseFuture {
     private final long beginTimestamp = System.currentTimeMillis();
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
+    // 确保信号量只被释放一次
     private final SemaphoreReleaseOnlyOnce once;
 
+    // 确保回调方法只被执行一次
     private final AtomicBoolean executeCallbackOnlyOnce = new AtomicBoolean(false);
     private volatile RemotingCommand responseCommand;
     private volatile boolean sendRequestOK = true;

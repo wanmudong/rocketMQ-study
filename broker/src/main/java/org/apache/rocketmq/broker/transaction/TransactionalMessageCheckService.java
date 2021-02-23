@@ -36,6 +36,9 @@ public class TransactionalMessageCheckService extends ServiceThread {
         return TransactionalMessageCheckService.class.getSimpleName();
     }
 
+    /**
+     * TransactionalMessageCheckService#run
+     */
     @Override
     public void run() {
         log.info("Start transaction check service thread!");
@@ -49,6 +52,7 @@ public class TransactionalMessageCheckService extends ServiceThread {
     @Override
     protected void onWaitEnd() {
         long timeout = brokerController.getBrokerConfig().getTransactionTimeOut();
+        // 超过15次的回查事务状态失败后，默认是丢弃此消息
         int checkMax = brokerController.getBrokerConfig().getTransactionCheckMax();
         long begin = System.currentTimeMillis();
         log.info("Begin to check prepare message, begin time:{}", begin);

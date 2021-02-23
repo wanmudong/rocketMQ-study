@@ -67,6 +67,14 @@ public class TransactionMQProducer extends DefaultMQProducer {
      * This method will be removed in the version 5.0.0, method <code>sendMessageInTransaction(Message,Object)</code>}
      * is recommended.
      */
+    /**
+     *
+     * @param msg 消息
+     * @param tranExecuter 本地事务执行器
+     * @param arg Argument 本地事务执行参数
+     * @return 事务发送结果
+     * @throws MQClientException 当Client 发生异常时
+     */
     @Override
     @Deprecated
     public TransactionSendResult sendMessageInTransaction(final Message msg,

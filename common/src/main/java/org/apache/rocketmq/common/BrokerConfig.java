@@ -161,6 +161,8 @@ public class BrokerConfig {
     /**
      * The minimum time of the transactional message  to be checked firstly, one message only exceed this time interval
      * that can be checked.
+     *
+     * 事务消息的超时时间
      */
     @ImportantField
     private long transactionTimeOut = 6 * 1000;

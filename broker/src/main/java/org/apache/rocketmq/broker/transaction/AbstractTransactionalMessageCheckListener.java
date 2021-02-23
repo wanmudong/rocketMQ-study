@@ -71,6 +71,7 @@ public abstract class AbstractTransactionalMessageCheckListener {
         String groupId = msgExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
         Channel channel = brokerController.getProducerManager().getAvaliableChannel(groupId);
         if (channel != null) {
+            // 通过Netty发送请求到RocketMQ Client端，执行checkTransactionState方法
             brokerController.getBroker2Client().checkProducerTransactionState(groupId, channel, checkTransactionStateRequestHeader, msgExt);
         } else {
             LOGGER.warn("Check transaction failed, channel is null. groupId={}", groupId);

@@ -55,6 +55,16 @@ public class MQFaultStrategy {
         this.sendLatencyFaultEnable = sendLatencyFaultEnable;
     }
 
+    /**
+     * 这里给个延时结论，
+     * 发送时长低于100ms时，设置broker不可用时长为0，之后依次增加，
+     * 如果超过15秒，则有10分钟不可用。
+     * 可以看到如果上次发送失败的话，也是10分钟不可用，
+     * 如果重试肯定不会选择相同的broker，即不会选择不可用的broker。
+     * @param tpInfo
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) {
             try {

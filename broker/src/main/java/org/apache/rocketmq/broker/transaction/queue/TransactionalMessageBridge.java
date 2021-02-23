@@ -201,11 +201,13 @@ public class TransactionalMessageBridge {
     }
 
     private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
+        //将真实topic与真实queueid存起来
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC, msgInner.getTopic());
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID,
             String.valueOf(msgInner.getQueueId()));
         msgInner.setSysFlag(
             MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), MessageSysFlag.TRANSACTION_NOT_TYPE));
+        // 替换topic 为RMQ_SYS_TRANS_HALF_TOPIC
         msgInner.setTopic(TransactionalMessageUtil.buildHalfTopic());
         msgInner.setQueueId(0);
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
@@ -213,6 +215,7 @@ public class TransactionalMessageBridge {
     }
 
     public boolean putOpMessage(MessageExt messageExt, String opType) {
+        // 创建MessageQueue，和PREPARED消息相同的QueueId和Topic
         MessageQueue messageQueue = new MessageQueue(messageExt.getTopic(),
             this.brokerController.getBrokerConfig().getBrokerName(), messageExt.getQueueId());
         if (TransactionalMessageUtil.REMOVETAG.equals(opType)) {
@@ -308,26 +311,39 @@ public class TransactionalMessageBridge {
      * @return This method will always return true.
      */
     private boolean addRemoveTagInTransactionOp(MessageExt messageExt, MessageQueue messageQueue) {
+        // OP消息
+        // Topic为RMQ_SYS_TRANS_OP_HALF_TOPIC，标记为删除，消息体为恢复Topic和QueueId的Prepared消息在ConsumeQueue的位置偏移
         Message message = new Message(TransactionalMessageUtil.buildOpTopic(), TransactionalMessageUtil.REMOVETAG,
             String.valueOf(messageExt.getQueueOffset()).getBytes(TransactionalMessageUtil.charset));
+        // 写入OP消息进CommitLog
         writeOp(message, messageQueue);
         return true;
     }
 
     private void writeOp(Message message, MessageQueue mq) {
         MessageQueue opQueue;
+        // 本地缓存已经有该QueueId和Topic的OpMessageQueue
         if (opQueueMap.containsKey(mq)) {
             opQueue = opQueueMap.get(mq);
+
+            // 没有
         } else {
+            // 创建一个OpMessageQueue，Topic为RMQ_SYS_TRANS_OP_HALF_TOPIC，BrokerName和QueueId和传入的一样
             opQueue = getOpQueueByHalf(mq);
+            // 加入
             MessageQueue oldQueue = opQueueMap.putIfAbsent(mq, opQueue);
+            // 双重检查，已存在
             if (oldQueue != null) {
+                // 用已经存在的
                 opQueue = oldQueue;
             }
         }
+        // 加入时不存在
         if (opQueue == null) {
+            // 和getOpQueueByHalf一模一样
             opQueue = new MessageQueue(TransactionalMessageUtil.buildOpTopic(), mq.getBrokerName(), mq.getQueueId());
         }
+        // 将该OP消息写入CommitLog
         putMessage(makeOpMessageInner(message, opQueue));
     }
 

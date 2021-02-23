@@ -476,6 +476,7 @@ public class MQClientAPIImpl {
                 if (timeoutMillis < costTimeAsync) {
                     throw new RemotingTooMuchRequestException("sendMessage call timeout");
                 }
+                // 发送异步消息
                 this.sendMessageAsync(addr, brokerName, msg, timeoutMillis - costTimeAsync, request, sendCallback, topicPublishInfo, instance,
                     retryTimesWhenSendFailed, times, context, producer);
                 return null;
@@ -522,6 +523,7 @@ public class MQClientAPIImpl {
         final long beginStartTime = System.currentTimeMillis();
         this.remotingClient.invokeAsync(addr, request, timeoutMillis, new InvokeCallback() {
             @Override
+            //根据消息结果的异步返回调用相应sendCallBack的onSuccess()或者onException()方法
             public void operationComplete(ResponseFuture responseFuture) {
                 long cost = System.currentTimeMillis() - beginStartTime;
                 RemotingCommand response = responseFuture.getResponseCommand();
@@ -563,15 +565,18 @@ public class MQClientAPIImpl {
                 } else {
                     producer.updateFaultItem(brokerName, System.currentTimeMillis() - responseFuture.getBeginTimestamp(), true);
                     if (!responseFuture.isSendRequestOK()) {
+                        // 消息发送失败
                         MQClientException ex = new MQClientException("send request failed", responseFuture.getCause());
                         onExceptionImpl(brokerName, msg, timeoutMillis - cost, request, sendCallback, topicPublishInfo, instance,
                             retryTimesWhenSendFailed, times, ex, context, true, producer);
                     } else if (responseFuture.isTimeout()) {
+                        // 消息发送超时
                         MQClientException ex = new MQClientException("wait response timeout " + responseFuture.getTimeoutMillis() + "ms",
                             responseFuture.getCause());
                         onExceptionImpl(brokerName, msg, timeoutMillis - cost, request, sendCallback, topicPublishInfo, instance,
                             retryTimesWhenSendFailed, times, ex, context, true, producer);
                     } else {
+                        // 其他异常
                         MQClientException ex = new MQClientException("unknow reseaon", responseFuture.getCause());
                         onExceptionImpl(brokerName, msg, timeoutMillis - cost, request, sendCallback, topicPublishInfo, instance,
                             retryTimesWhenSendFailed, times, ex, context, true, producer);
@@ -595,6 +600,7 @@ public class MQClientAPIImpl {
         final boolean needRetry,
         final DefaultMQProducerImpl producer
     ) {
+        // 重试次数
         int tmp = curTimes.incrementAndGet();
         if (needRetry && tmp <= timesTotal) {
             String retryBrokerName = brokerName;//by default, it will send to the same broker

@@ -30,8 +30,10 @@ public class TopicValidator {
     public static final String AUTO_CREATE_TOPIC_KEY_TOPIC = "TBW102"; // Will be created at broker when isAutoCreateTopicEnable
     public static final String RMQ_SYS_SCHEDULE_TOPIC = "SCHEDULE_TOPIC_XXXX";
     public static final String RMQ_SYS_BENCHMARK_TOPIC = "BenchmarkTest";
+    //prepare消息的主题，事务消息首先先进入到该主题
     public static final String RMQ_SYS_TRANS_HALF_TOPIC = "RMQ_SYS_TRANS_HALF_TOPIC";
     public static final String RMQ_SYS_TRACE_TOPIC = "RMQ_SYS_TRACE_TOPIC";
+    //当消息服务器收到事务消息的提交或回滚请求后，会将消息存储在该主题下。
     public static final String RMQ_SYS_TRANS_OP_HALF_TOPIC = "RMQ_SYS_TRANS_OP_HALF_TOPIC";
     public static final String RMQ_SYS_TRANS_CHECK_MAX_TIME_TOPIC = "TRANS_CHECK_MAX_TIME_TOPIC";
     public static final String RMQ_SYS_SELF_TEST_TOPIC = "SELF_TEST_TOPIC";

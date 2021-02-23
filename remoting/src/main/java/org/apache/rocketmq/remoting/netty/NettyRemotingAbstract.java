@@ -293,6 +293,7 @@ public abstract class NettyRemotingAbstract {
             responseTable.remove(opaque);
 
             if (responseFuture.getInvokeCallback() != null) {
+                // 通过线程池执行
                 executeInvokeCallback(responseFuture);
             } else {
                 responseFuture.putResponse(cmd);
@@ -378,6 +379,7 @@ public abstract class NettyRemotingAbstract {
     /**
      * <p>
      * This method is periodically invoked to scan and expire deprecated request.
+     * 定时扫描且释放过期请求
      * </p>
      */
     public void scanResponseTable() {
@@ -460,6 +462,7 @@ public abstract class NettyRemotingAbstract {
                 throw new RemotingTimeoutException("invokeAsyncImpl call timeout");
             }
 
+            // 根据传入的InvokeCallback构造成responseFuture任务类交由netty客户端来处理
             final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis - costTime, invokeCallback, once);
             this.responseTable.put(opaque, responseFuture);
             try {
