@@ -25,14 +25,30 @@ import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
 public class RegisterBrokerRequestHeader implements CommandCustomHeader {
+    /**
+     * broker名称
+     */
     @CFNotNull
     private String brokerName;
+    /**
+     * broker 地址
+     */
     @CFNotNull
     private String brokerAddr;
+    /**
+     * 集群名称
+     */
     @CFNotNull
     private String clusterName;
+    /**
+     * master地址
+     * 初次请求时该值为空,salve向nameserver注册后返回
+     */
     @CFNotNull
     private String haServerAddr;
+    /**
+     * brokerId,0,master;大于0,slave.
+     */
     @CFNotNull
     private Long brokerId;
 

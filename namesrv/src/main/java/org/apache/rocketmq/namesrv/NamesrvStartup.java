@@ -54,7 +54,9 @@ public class NamesrvStartup {
     public static NamesrvController main0(String[] args) {
 
         try {
+            // 启动属性创建 NamesrvController 实例
             NamesrvController controller = createNamesrvController(args);
+            // 初始化该实例
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
@@ -79,10 +81,15 @@ public class NamesrvStartup {
             return null;
         }
 
+        // 填充nameServer业务参数 NamesrvConfig
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
+        // 填充nameServer网络参数 NettyServerConfig
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         nettyServerConfig.setListenPort(9876);
+
+        // 通过解析配置文件或者启动时的命令行参数填充namesrvConfig以及nettyServerConfig
         if (commandLine.hasOption('c')) {
+            // 通过-c configFile指定配置文件的路径
             String file = commandLine.getOptionValue('c');
             if (file != null) {
                 InputStream in = new BufferedInputStream(new FileInputStream(file));
@@ -143,6 +150,7 @@ public class NamesrvStartup {
             System.exit(-3);
         }
 
+        // 注册JVM钩子函数,以便确保在JVM进程关闭之前,先将线程池关闭
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {
@@ -151,6 +159,7 @@ public class NamesrvStartup {
             }
         }));
 
+        // 启动服务器
         controller.start();
 
         return controller;
