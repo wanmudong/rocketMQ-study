@@ -609,6 +609,8 @@ public class MQClientInstance {
                 try {
                     TopicRouteData topicRouteData;
                     if (isDefault && defaultMQProducer != null) {
+                        // step1:
+                        //使用默认主题去查询,查询到路由信息则替换路由信息中读写队列个数
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                             1000 * 3);
                         if (topicRouteData != null) {
@@ -619,9 +621,13 @@ public class MQClientInstance {
                             }
                         }
                     } else {
+                        // 使用参数topic去查询
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
                     if (topicRouteData != null) {
+                        // step2:
+                        // 在路由信息找到的情况下,比对其与本地缓存中的路由信息,判断是否发生改变
+                        // 未发生变化,则直接返回false
                         TopicRouteData old = this.topicRouteTable.get(topic);
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);
                         if (!changed) {
@@ -630,6 +636,7 @@ public class MQClientInstance {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
+                        // step3: 更新地址缓存表
                         if (changed) {
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
@@ -638,6 +645,9 @@ public class MQClientInstance {
                             }
 
                             // Update Pub info
+                            // step4:
+                            // 根据topicRouteData转换成TopicPublishInfo,更新topicPublishInfoTable
+                            // 目的:更新该MQClientInstance所管辖的所有消息发送关于topic的路由信息
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);

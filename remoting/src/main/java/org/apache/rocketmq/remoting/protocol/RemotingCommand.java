@@ -69,18 +69,18 @@ public class RemotingCommand {
         }
     }
 
-    private int code;
+    private int code; // 请求命令编码
     private LanguageCode language = LanguageCode.JAVA;
-    private int version = 0;
-    private int opaque = requestId.getAndIncrement();
-    private int flag = 0;
-    private String remark;
-    private HashMap<String, String> extFields;
-    private transient CommandCustomHeader customHeader;
+    private int version = 0; // 版本号
+    private int opaque = requestId.getAndIncrement(); // 客户端请求序号
+    private int flag = 0; // 标记  倒数第一位表示请求类型， O ： 请求 ； 1 ：返回 。 倒数第二位，1 ： 表示oneway 。
+    private String remark;// 描述
+    private HashMap<String, String> extFields;// 扩展属性
+    private transient CommandCustomHeader customHeader; // 每个请求对应的请求头信息
 
     private SerializeType serializeTypeCurrentRPC = serializeTypeConfigInThisServer;
 
-    private transient byte[] body;
+    private transient byte[] body; // 消息体内容
 
     protected RemotingCommand() {
     }

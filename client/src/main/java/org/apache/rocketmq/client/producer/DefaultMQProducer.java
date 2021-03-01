@@ -65,8 +65,10 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     /**
      * Producer group conceptually aggregates all producer instances of exactly same role, which is particularly
      * important when transactional messages are involved. </p>
+     * 生产组所属组,消息服务器在回查事务状态时会随机选择该组中任何一个生产者发起事务回查请求
      *
      * For non-transactional messages, it does not matter as long as it's unique per process. </p>
+     * 对于非事务消息,对于每一个都是唯一的
      *
      * See {@linktourl http://rocketmq.apache.org/docs/core-concept/} for more discussion.
      */
@@ -74,33 +76,40 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Just for testing or demo program
+     * 默认topicKey
      */
     private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
     /**
      * Number of queues to create per default topic.
+     * 默认主题在每一个broker的队列数量
      */
     private volatile int defaultTopicQueueNums = 4;
 
     /**
      * Timeout for sending messages.
+     * 消息的默认超时时间
      */
     private int sendMsgTimeout = 3000;
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     * 默认消息大小超过4k会进行压缩
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
     /**
      * Maximum number of retry to perform internally before claiming sending failure in synchronous mode. </p>
+     * 同步方式发生消息重试次数,默认2次,连上发送的一次,一共发送3次
      *
      * This may potentially cause message duplication which is up to application developers to resolve.
+     * 可能导致消息重复,这个需要开发人员解决这个问题
      */
     private int retryTimesWhenSendFailed = 2;
 
     /**
      * Maximum number of retry to perform internally before claiming sending failure in asynchronous mode. </p>
+     * 异步方式发生消息重试次数,默认2次,连上发送的一次,一共发送3次
      *
      * This may potentially cause message duplication which is up to application developers to resolve.
      */
@@ -108,11 +117,13 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Indicate whether to retry another broker on sending failure internally.
+     * 消息重试时是否选择另外一个broker
      */
     private boolean retryAnotherBrokerWhenNotStoreOK = false;
 
     /**
      * Maximum allowed message size in bytes.
+     * 允许发送的最大消息长度 4M
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 

@@ -18,15 +18,16 @@ package org.apache.rocketmq.common.message;
 
 import java.util.HashSet;
 
+@SuppressWarnings("AlibabaAvoidCommentBehindStatement")
 public class MessageConst {
-    public static final String PROPERTY_KEYS = "KEYS";
-    public static final String PROPERTY_TAGS = "TAGS";
-    public static final String PROPERTY_WAIT_STORE_MSG_OK = "WAIT";
-    public static final String PROPERTY_DELAY_TIME_LEVEL = "DELAY";
+    public static final String PROPERTY_KEYS = "KEYS"; // message索引键,用空格隔开,rocketmq可以根据这些key快速检索到消息
+    public static final String PROPERTY_TAGS = "TAGS"; // 消息tag,用于消息过滤
+    public static final String PROPERTY_WAIT_STORE_MSG_OK = "WAIT"; // 消息发送是否扥该消息存储完成后再返回
+    public static final String PROPERTY_DELAY_TIME_LEVEL = "DELAY"; // 消息延迟级别,用于定时消息或者消息重试
     public static final String PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
     public static final String PROPERTY_REAL_TOPIC = "REAL_TOPIC";
     public static final String PROPERTY_REAL_QUEUE_ID = "REAL_QID";
-    public static final String PROPERTY_TRANSACTION_PREPARED = "TRAN_MSG";
+    public static final String PROPERTY_TRANSACTION_PREPARED = "TRAN_MSG";// 事务prepared消息
     public static final String PROPERTY_PRODUCER_GROUP = "PGROUP";
     public static final String PROPERTY_MIN_OFFSET = "MIN_OFFSET";
     public static final String PROPERTY_MAX_OFFSET = "MAX_OFFSET";

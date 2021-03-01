@@ -62,6 +62,7 @@ public class ClientConfig {
 
     private LanguageCode language = LanguageCode.JAVA;
 
+    // clientId 为客户端ID+@+instanceName+@+(unitname)
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());
@@ -93,6 +94,10 @@ public class ClientConfig {
     }
 
     public void changeInstanceNameToPID() {
+        // 为了避免不同进程的互相影响
+        // 因为clientId 为客户端ID+@+instanceName+@+(unitname)
+        // 如果不将instanceName改为进程ID会导致不同进程的clientId相同
+        // 但此时一个JVM中的不同消费者和不同生产者获取的MQClientInstance实例是同一个
         if (this.instanceName.equals("DEFAULT")) {
             this.instanceName = String.valueOf(UtilAll.getPid());
         }

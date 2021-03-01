@@ -383,6 +383,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         }
 
         response.setCode(-1);
+        // step1: ：检查消息发送是否合理
         super.msgCheck(ctx, requestHeader, response);
         if (response.getCode() != -1) {
             return response;
@@ -401,6 +402,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setTopic(requestHeader.getTopic());
         msgInner.setQueueId(queueIdInt);
 
+        // step2: ：如果消息重试次数超过允许的最大重试次数，消息将进入到 DLD 延迟队列 。 延迟队列主题： %DLQ%＋消费组名，
         if (!handleRetryAndDLQ(requestHeader, response, request, msgInner, topicConfig)) {
             return response;
         }
@@ -431,6 +433,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             }
             putMessageResult = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
+            // step3: 调用putMessage进行消息存储
             putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
         }
 

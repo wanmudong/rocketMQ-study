@@ -24,10 +24,11 @@ import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
 public class TopicPublishInfo {
-    private boolean orderTopic = false;
+
+    private boolean orderTopic = false;// 是否顺序消息
     private boolean haveTopicRouterInfo = false;
-    private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
-    private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
+    private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();// 主题的消息队列
+    private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();//用于选择消息队列 每次选择一次消息队列会自增,超过Integer.MAX_VALUE,会重置为0
     private TopicRouteData topicRouteData;
 
     public boolean isOrderTopic() {

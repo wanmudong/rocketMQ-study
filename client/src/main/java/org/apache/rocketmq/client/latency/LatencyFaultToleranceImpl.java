@@ -31,6 +31,11 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
+        //根据 broker 名称从缓存表中获取 FaultItem，如果找到则更新 FaultItem ，否则创建 FaultItem。
+
+        // 注意:
+        // 1.currentLatency,startTimestamp被volatile修饰
+        // 2.通过startTimestamp判断当前broker是否可用,具体方法为isAvailable
         FaultItem old = this.faultItemTable.get(name);
         if (null == old) {
             final FaultItem faultItem = new FaultItem(name);
@@ -97,9 +102,9 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
     }
 
     class FaultItem implements Comparable<FaultItem> {
-        private final String name;
-        private volatile long currentLatency;
-        private volatile long startTimestamp;
+        private final String name;// 条目唯一键,这里是brokerName
+        private volatile long currentLatency;// 本次消息的发送延迟
+        private volatile long startTimestamp;// 故障规避开始时间
 
         public FaultItem(final String name) {
             this.name = name;

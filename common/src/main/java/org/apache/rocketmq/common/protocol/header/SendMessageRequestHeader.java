@@ -27,29 +27,29 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
 public class SendMessageRequestHeader implements CommandCustomHeader {
     @CFNotNull
-    private String producerGroup;
+    private String producerGroup;// 生产者组
     @CFNotNull
-    private String topic;
+    private String topic;// 主题名称
     @CFNotNull
-    private String defaultTopic;
+    private String defaultTopic;// 默认创建主题Key
     @CFNotNull
-    private Integer defaultTopicQueueNums;
+    private Integer defaultTopicQueueNums;// 该主题在单个Broker默认队列数
     @CFNotNull
-    private Integer queueId;
+    private Integer queueId;// 队列ID.即队列序号
     @CFNotNull
-    private Integer sysFlag;
+    private Integer sysFlag;// 消息系统标记
     @CFNotNull
-    private Long bornTimestamp;
+    private Long bornTimestamp;// 消息发送时间
     @CFNotNull
-    private Integer flag;
+    private Integer flag;// 消息标记,rocketmq对消息中的flag不作任何处理,供应用程序使用
     @CFNullable
-    private String properties;
+    private String properties;// 消息扩展属性
     @CFNullable
-    private Integer reconsumeTimes;
+    private Integer reconsumeTimes;// 消息重试次数
     @CFNullable
-    private boolean unitMode = false;
+    private boolean unitMode = false;//
     @CFNullable
-    private boolean batch = false;
+    private boolean batch = false;// 是否批量消息
     private Integer maxReconsumeTimes;
 
     @Override
