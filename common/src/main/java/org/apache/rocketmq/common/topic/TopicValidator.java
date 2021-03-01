@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 public class TopicValidator {
 
     public static final String AUTO_CREATE_TOPIC_KEY_TOPIC = "TBW102"; // Will be created at broker when isAutoCreateTopicEnable
-    public static final String RMQ_SYS_SCHEDULE_TOPIC = "SCHEDULE_TOPIC_XXXX";
+    public static final String RMQ_SYS_SCHEDULE_TOPIC = "SCHEDULE_TOPIC_XXXX"; // 延迟消息主题
     public static final String RMQ_SYS_BENCHMARK_TOPIC = "BenchmarkTest";
     //prepare消息的主题，事务消息首先先进入到该主题
     public static final String RMQ_SYS_TRANS_HALF_TOPIC = "RMQ_SYS_TRANS_HALF_TOPIC";

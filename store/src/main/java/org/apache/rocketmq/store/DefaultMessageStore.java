@@ -66,31 +66,31 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
-    private final MessageStoreConfig messageStoreConfig;
+    private final MessageStoreConfig messageStoreConfig;// 消息存储配置属性
     // CommitLog
-    private final CommitLog commitLog;
+    private final CommitLog commitLog;// 文件的存储实现类
 
-    private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
+    private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable; // 消息队列存储缓存表,按消息主题分组
 
-    private final FlushConsumeQueueService flushConsumeQueueService;
+    private final FlushConsumeQueueService flushConsumeQueueService;// 消息队列文件ConsumeQueue刷盘线程
 
-    private final CleanCommitLogService cleanCommitLogService;
+    private final CleanCommitLogService cleanCommitLogService;// 清除CommitLog文件服务
 
-    private final CleanConsumeQueueService cleanConsumeQueueService;
+    private final CleanConsumeQueueService cleanConsumeQueueService; // 清除ConsumeQueue文件服务
 
-    private final IndexService indexService;
+    private final IndexService indexService;// 索引文件实现类
 
-    private final AllocateMappedFileService allocateMappedFileService;
+    private final AllocateMappedFileService allocateMappedFileService;// MappedFile分配服务
 
-    private final ReputMessageService reputMessageService;
+    private final ReputMessageService reputMessageService; // CommitLog 消息分发,根据commitLog文件构建ConsumeQueue/IndexFile文件
 
-    private final HAService haService;
+    private final HAService haService;// 存储HA机制
 
-    private final ScheduleMessageService scheduleMessageService;
+    private final ScheduleMessageService scheduleMessageService;// 定时消息服务
 
     private final StoreStatsService storeStatsService;
 
-    private final TransientStorePool transientStorePool;
+    private final TransientStorePool transientStorePool; // 消息堆内存缓存
 
     private final RunningFlags runningFlags = new RunningFlags();
     private final SystemClock systemClock = new SystemClock();
@@ -98,16 +98,16 @@ public class DefaultMessageStore implements MessageStore {
     private final ScheduledExecutorService scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
     private final BrokerStatsManager brokerStatsManager;
-    private final MessageArrivingListener messageArrivingListener;
-    private final BrokerConfig brokerConfig;
+    private final MessageArrivingListener messageArrivingListener;// 消息拉取长轮询模式消息到达监听器
+    private final BrokerConfig brokerConfig;// Broker配置属性
 
     private volatile boolean shutdown = true;
 
-    private StoreCheckpoint storeCheckpoint;
+    private StoreCheckpoint storeCheckpoint;// 文件刷盘检测点
 
     private AtomicLong printTimes = new AtomicLong(0);
 
-    private final LinkedList<CommitLogDispatcher> dispatcherList;
+    private final LinkedList<CommitLogDispatcher> dispatcherList; // CommitLog文件转发请求
 
     private RandomAccessFile lockFile;
 
@@ -475,6 +475,9 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
+        // step1 :
+        // 如果当前Broker停止工作或Broker为SLAVE角色或当前Rocket不支持写入则拒绝消息写入;
+        // 如果消息主题大于256个字符,消息属性长度超过65536个字符.则拒绝消息写入
         PutMessageStatus checkStoreStatus = this.checkStoreStatus();
         if (checkStoreStatus != PutMessageStatus.PUT_OK) {
             return new PutMessageResult(checkStoreStatus, null);
