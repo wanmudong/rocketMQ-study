@@ -199,6 +199,7 @@ public class IndexService {
     }
 
     public void buildIndex(DispatchRequest req) {
+        // step 1 : 创建或者获取最大物理偏移量.如果消息物理偏移量小于最大物理偏移量,说明是重复数据
         IndexFile indexFile = retryGetAndCreateIndexFile();
         if (indexFile != null) {
             long endPhyOffset = indexFile.getEndPhyOffset();
@@ -219,6 +220,7 @@ public class IndexService {
                     return;
             }
 
+            // step 2 : 如果消息唯一键不为空,则添加到hash索引中
             if (req.getUniqKey() != null) {
                 indexFile = putKey(indexFile, msg, buildKey(topic, req.getUniqKey()));
                 if (indexFile == null) {
@@ -227,6 +229,7 @@ public class IndexService {
                 }
             }
 
+            // step 3 : 构建索引键,rocketMQ支持为同一个消息创建多个索引,多个索引键之间通过空格分开
             if (keys != null && keys.length() > 0) {
                 String[] keyset = keys.split(MessageConst.KEY_SEPARATOR);
                 for (int i = 0; i < keyset.length; i++) {

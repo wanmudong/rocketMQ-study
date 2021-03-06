@@ -53,6 +53,7 @@ public abstract class ReferenceResource {
         }
     }
 
+    // 释放MappedFile资源,释放资源的前提是该MappedFile的引用小于等于0
     public void release() {
         long value = this.refCount.decrementAndGet();
         if (value > 0)

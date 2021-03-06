@@ -44,11 +44,13 @@ public class MessageStoreConfig {
 
     // CommitLog flush interval
     // flush data to disk
+    // FlushRealTimeService 线程仍无运行剪个
     @ImportantField
     private int flushIntervalCommitLog = 500;
 
     // Only used if TransientStorePool enabled
     // flush data to FileChannel
+    // CommitRealTimeService线程间隔时间,默认200ms
     @ImportantField
     private int commitIntervalCommitLog = 200;
 
@@ -60,22 +62,24 @@ public class MessageStoreConfig {
 
     // Whether schedule flush,default is real-time
     @ImportantField
-    private boolean flushCommitLogTimed = false;
+    private boolean flushCommitLogTimed = false; // 定时刷盘还是实时刷盘
     // ConsumeQueue flush interval
     private int flushIntervalConsumeQueue = 1000;
     // Resource reclaim interval
     private int cleanResourceInterval = 10000;
     // CommitLog removal interval
+    // 删除物理文件的间隔
     private int deleteCommitLogFilesInterval = 100;
     // ConsumeQueue removal interval
     private int deleteConsumeQueueFilesInterval = 100;
-    private int destroyMapedFileIntervalForcibly = 1000 * 120;
+    private int destroyMapedFileIntervalForcibly = 1000 * 120; // 在第一次拒绝删除后能保留的最大时间,再该时间内可以拒绝删除,同时引用将减少1000,超过该时间后,文件将被强制删除
     private int redeleteHangedFileInterval = 1000 * 120;
     // When to delete,default is at 4 am
     @ImportantField
     private String deleteWhen = "04";
-    private int diskMaxUsedSpaceRatio = 75;
+    private int diskMaxUsedSpaceRatio = 75; // 表示commitlog consumequeue文件所在磁盘分区最大使用量
     // The number of hours to keep a log file before deleting it (in hours)
+    // 文件保留时间,超过时间认为是过期文件,单位是小时
     @ImportantField
     private int fileReservedTime = 72;
     // Flow control for ConsumeQueue
@@ -87,15 +91,16 @@ public class MessageStoreConfig {
     // This check adds some overhead,so it may be disabled in cases seeking extreme performance.
     private boolean checkCRCOnRecover = true;
     // How many pages are to be flushed when flush CommitLog
-    private int flushCommitLogLeastPages = 4;
+    private int flushCommitLogLeastPages = 4; // 一次刷写至少包含的页数,如果提交数据不足,将忽略本次任务
     // How many pages are to be committed when commit data to file
+    // 一次提交至少包含的页数,如果提交数据不足,将忽略本次任务
     private int commitCommitLogLeastPages = 4;
     // Flush page size when the disk in warming state
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
     // How many pages are to be flushed when flush ConsumeQueue
     private int flushConsumeQueueLeastPages = 2;
-    private int flushCommitLogThoroughInterval = 1000 * 10;
-    private int commitCommitLogThoroughInterval = 200;
+    private int flushCommitLogThoroughInterval = 1000 * 10;// 两次真是刷写人物最大间隔,默认 10s
+    private int commitCommitLogThoroughInterval = 200; // 两次真实提交最大间隔,默认200ms
     private int flushConsumeQueueThoroughInterval = 1000 * 60;
     @ImportantField
     private int maxTransferBytesOnMessageInMemory = 1024 * 256;
