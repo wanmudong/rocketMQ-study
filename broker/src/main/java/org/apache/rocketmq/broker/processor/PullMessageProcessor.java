@@ -153,6 +153,8 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         ConsumerFilterData consumerFilterData = null;
         if (hasSubscriptionFlag) {
             try {
+                //消息过滤 step 3:
+                // 根据主题、消息过滤表达式构建订阅消息实体
                 subscriptionData = FilterAPI.build(
                     requestHeader.getTopic(), requestHeader.getSubscription(), requestHeader.getExpressionType()
                 );
@@ -227,6 +229,8 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             return response;
         }
 
+        // 消息过滤 step 4 :
+        // 构建消息过滤对象,支持对重试主题的过滤ExpressionForRetryMessageFilter 不支持对重试主题过滤ExpressionMessageFilter
         MessageFilter messageFilter;
         if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) {
             messageFilter = new ExpressionForRetryMessageFilter(subscriptionData, consumerFilterData,
@@ -236,15 +240,19 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                 this.brokerController.getConsumerFilterManager());
         }
 
+        // step 2 :
+        //调用MessageStore.getMessage查找消息
         final GetMessageResult getMessageResult =
             this.brokerController.getMessageStore().getMessage(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
                 requestHeader.getQueueId(), requestHeader.getQueueOffset(), requestHeader.getMaxMsgNums(), messageFilter);
         if (getMessageResult != null) {
+            // step 6: 根据pullresult进行填充
             response.setRemark(getMessageResult.getStatus().name());
             responseHeader.setNextBeginOffset(getMessageResult.getNextBeginOffset());
             responseHeader.setMinOffset(getMessageResult.getMinOffset());
             responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
 
+            // step 7: 根据主从同步,如果从节点数据包含下次拉取的偏移量,设置下一次拉取任务的brokerid
             if (getMessageResult.isSuggestPullingFromSlave()) {
                 responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
             } else {
@@ -276,6 +284,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                 responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
             }
 
+            // step 8 : 根据getMessageResult编码转换关系
             switch (getMessageResult.getStatus()) {
                 case FOUND:
                     response.setCode(ResponseCode.SUCCESS);
@@ -409,13 +418,17 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                 case ResponseCode.PULL_NOT_FOUND:
 
                     if (brokerAllowSuspend && hasSuspendFlag) {
+                        // 默认支持挂起，则根据是否开启长轮询来决定挂起方式，
+                        // 如果支持长轮询模式，挂起超时时间来源于请求参数，
+                        // PUSH模式默认为15s,PULL模式通过DefaultMQPulIConsumer#brokerSuspenMaxTimeMillis设置，默认20s。
+                        // 然后创建拉取任务PullRequest并提交到Pu!IRequestHoldService线程中
                         long pollingTimeMills = suspendTimeoutMillisLong;
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                             pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
                         }
 
                         String topic = requestHeader.getTopic();
-                        long offset = requestHeader.getQueueOffset();
+                         long offset = requestHeader.getQueueOffset();
                         int queueId = requestHeader.getQueueId();
                         PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
                             this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
@@ -461,6 +474,9 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             response.setRemark("store getMessage return null");
         }
 
+        // step 9: 如果commitlog标记可用并且当前节点为主节点,则更新消息消费进度
+        // 服务端消息拉取处理完毕，将返回结果到拉取消息调用方。
+        // 调用方，需要重点关注PULLRETRYIMMEDIATELY、PULLOFFSETMOVED、PULLNOTFOUND等情况下如何校正拉取偏移量。
         boolean storeOffsetEnable = brokerAllowSuspend;
         storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag;
         storeOffsetEnable = storeOffsetEnable
@@ -549,6 +565,9 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
 
     public void executeRequestWhenWakeup(final Channel channel,
         final RemotingCommand request) throws RemotingCommandException {
+        //step 5 :
+        // 设置brokerAllowSuspend为false，表示不支持拉取线程挂起，
+        // 即当根据偏移量无法获取消息时将不挂起线程等待新消息到来，而是直接返回告诉客户端本次消息拉取未找到消息。
         Runnable run = new Runnable() {
             @Override
             public void run() {

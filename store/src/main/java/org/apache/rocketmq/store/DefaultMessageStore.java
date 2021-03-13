@@ -583,20 +583,23 @@ public class DefaultMessageStore implements MessageStore {
 
         long beginTime = this.getSystemClock().now();
 
+        // step 3: 根据主题名称和队列编号获取消息消费队列
         GetMessageStatus status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
-        long nextBeginOffset = offset;
-        long minOffset = 0;
-        long maxOffset = 0;
+        long nextBeginOffset = offset; // 待查找的队列偏移量
+        long minOffset = 0;// 当前消息队列最小偏移量
+        long maxOffset = 0; // 当前消息队列的最大偏移量
 
         GetMessageResult getResult = new GetMessageResult();
 
-        final long maxOffsetPy = this.commitLog.getMaxOffset();
+        final long maxOffsetPy = this.commitLog.getMaxOffset(); // 当前commitlog文件最大偏移量
 
         ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
         if (consumeQueue != null) {
+            // step 4: 消息偏移量异常情况校对下一次拉取偏移量
             minOffset = consumeQueue.getMinOffsetInQueue();
             maxOffset = consumeQueue.getMaxOffsetInQueue();
 
+            //修正规律:主节点修正为offset,从节点修正为判断条件
             if (maxOffset == 0) {
                 status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
                 nextBeginOffset = nextOffsetCorrection(offset, 0);
@@ -614,6 +617,7 @@ public class DefaultMessageStore implements MessageStore {
                     nextBeginOffset = nextOffsetCorrection(offset, maxOffset);
                 }
             } else {
+                // step 5; 从当前offset尝试拉取32条消息
                 SelectMappedBufferResult bufferConsumeQueue = consumeQueue.getIndexBuffer(offset);
                 if (bufferConsumeQueue != null) {
                     try {
@@ -658,6 +662,8 @@ public class DefaultMessageStore implements MessageStore {
                                 }
                             }
 
+                            // 消息过滤 step 5 :
+                            // 根据偏移量拉取消息后,首先根据ConsumeQueue条目进行消息过滤,不匹配则跳过该消息,继续下一条
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByConsumeQueue(isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -677,6 +683,9 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
+                            // 消息过滤 step 6 :
+                            // ：如果消息根据 ConsumeQueue 条目通过过滤，则需要从 CommitLog 文件中加载整个消息体，然后根据属性进行过滤 。
+                            //  当然如果过滤方式是 TAG 模式，该方法默认返回 true ，
                             if (messageFilter != null
                                 && !messageFilter.isMatchedByCommitLog(selectResult.getByteBuffer().slice(), null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -1945,6 +1954,9 @@ public class DefaultMessageStore implements MessageStore {
         /**
          * 消息转发的核心实现
          */
+        // 如果当开启了长轮询机制，PullRequestHoldService线程会每隔5s被唤醒去尝试检测是否有新消息的到来直到超时，
+        // 如果被挂起，需要等待，消息拉取实时性比较差，为了避免这种情况，RocketMQ引入另外一种机制：
+        // 当消息到达时唤醒挂起线程触发一次检查。
         private void doReput() {
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
@@ -1974,8 +1986,11 @@ public class DefaultMessageStore implements MessageStore {
                             if (dispatchRequest.isSuccess()) {
                                 // 如果消息长度大于0 , 则调用doDispatch方法
                                 if (size > 0) {
-                                    DefaultMessageStore.this.doDispatch(dispatchRequest);
 
+                                    DefaultMessageStore.this.doDispatch(dispatchRequest);
+                                    //如果Broker端开启了长轮询模式并且角色主节点，
+                                    // 则最终将调用PullRequestHoldService线程的notifyMessageArriving方法唤醒挂起线程，
+                                    // 判断当前消费队列最大偏移量是否大于待拉取偏移量。如果大于则拉取消息。长轮询模式使得消息拉取能实现实时
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                         && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()) {
                                         DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),

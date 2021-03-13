@@ -779,6 +779,7 @@ public class MQClientAPIImpl {
 
     private PullResult processPullResponse(
         final RemotingCommand response) throws MQBrokerException, RemotingCommandException {
+        // step : 1 根据相应结果编码成pullresuleext对象
         PullStatus pullStatus = PullStatus.NO_NEW_MSG;
         switch (response.getCode()) {
             case ResponseCode.SUCCESS:

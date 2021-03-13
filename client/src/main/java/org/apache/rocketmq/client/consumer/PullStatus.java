@@ -18,7 +18,7 @@ package org.apache.rocketmq.client.consumer;
 
 public enum PullStatus {
     /**
-     * Founded
+     * Founded  找到对应的消息
      */
     FOUND,
     /**

@@ -54,15 +54,24 @@ import org.apache.rocketmq.remoting.common.RemotingHelper;
 
 public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     private static final InternalLogger log = ClientLogger.getLog();
+    // 每次消费任务最大持续时间,默认60s
     private final static long MAX_TIME_CONSUME_CONTINUOUSLY =
         Long.parseLong(System.getProperty("rocketmq.client.maxTimeConsumeContinuously", "60000"));
+    // 消息消费者实现类
     private final DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
+    // 消息消费者
     private final DefaultMQPushConsumer defaultMQPushConsumer;
+    // 顺序消息消费监听器
     private final MessageListenerOrderly messageListener;
+    // 消息消费任务队列
     private final BlockingQueue<Runnable> consumeRequestQueue;
+    // 消息消费线程池
     private final ThreadPoolExecutor consumeExecutor;
+    // 消费组名
     private final String consumerGroup;
+    // 消息消费端消息消费队列锁容器
     private final MessageQueueLock messageQueueLock = new MessageQueueLock();
+    // 调度任务线程池
     private final ScheduledExecutorService scheduledExecutorService;
     private volatile boolean stopped = false;
 
@@ -75,6 +84,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         this.consumerGroup = this.defaultMQPushConsumer.getConsumerGroup();
         this.consumeRequestQueue = new LinkedBlockingQueue<Runnable>();
 
+        // 消息任务队列为LinkedBlockingQueue,消息消费线程池最大运行时个数为consumeThreadMin
         this.consumeExecutor = new ThreadPoolExecutor(
             this.defaultMQPushConsumer.getConsumeThreadMin(),
             this.defaultMQPushConsumer.getConsumeThreadMax(),
@@ -87,6 +97,10 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     public void start() {
+        // 如果消费模式为集群模式，启动定时任务，默认每隔 20s 执行一次锁定分配给自 己的 消息消费队列 。
+
+        //集群模式下顺序消息消费在创建拉取任务时并 未将 ProcessQueue 的 locked 状态设置为 true ， 在未锁定消息队列之前无法执行消息拉取任务，
+        //ConsumeMessageOrderlyService 以 每 20s 的 频率对分配给自己的消息队列进行自动加锁操作，从而消费加锁成功的消息消费队列
         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
@@ -199,6 +213,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         final ProcessQueue processQueue,
         final MessageQueue messageQueue,
         final boolean dispathToConsume) {
+        // 构建消费任务,并提交到消费线程池中
         if (dispathToConsume) {
             ConsumeRequest consumeRequest = new ConsumeRequest(processQueue, messageQueue);
             this.consumeExecutor.submit(consumeRequest);
@@ -279,12 +294,18 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                     break;
                 case SUSPEND_CURRENT_QUEUE_A_MOMENT:
                     this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    // 检查消息的重试次数,大于或等于最大重试次数,将发送到broker端,进入DLQ(死信队列)\
+                    // checkReconsumeTimes返回false，该批消息将直接调用ProcessQueue#commit提交，表示消息消费成功，
+                    // 如果这批消息中有任意一条消息的重试次数小于允许的最大重试次数，将返回true，执行消息重试。
                     if (checkReconsumeTimes(msgs)) {
+                        //消息消费重试，先将该批消息重新放入到ProcessQueue的msgTreeMap，
+                        // 然后清除consumingMsgOrderlyTreeMap，默认延迟1s再加入到消费队列中，并结束此次消息消费
                         consumeRequest.getProcessQueue().makeMessageToCosumeAgain(msgs);
                         this.submitConsumeRequestLater(
                             consumeRequest.getProcessQueue(),
                             consumeRequest.getMessageQueue(),
                             context.getSuspendCurrentQueueTimeMillis());
+                        // 如果执行消息重试,消息消费进度并为向前推进,故本次为无效消费
                         continueConsume = false;
                     } else {
                         commitOffset = consumeRequest.getProcessQueue().commit();
@@ -325,6 +346,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             }
         }
 
+        // step 10 : 存储消费进度
         if (commitOffset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
             this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), commitOffset, false);
         }
@@ -414,15 +436,22 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
         @Override
         public void run() {
+            // step 1 : 如果消息处理对了为丢弃,停止消费
             if (this.processQueue.isDropped()) {
                 log.warn("run, the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
                 return;
             }
 
+            // step 2 :根据消息队列获取一个对象。 然后消息消费时先申请独占 objLock。
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
             synchronized (objLock) {
+                // step3: 如果是广播模式,直接消费
+                // 如果是集群模式,,消费的前提是处理队列被锁定且未超时
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                     || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
+                    //Step4：顺序消息消费处理逻辑，
+                    // 每一个ConsumeRequest消费任务不是以消费消息条数来计算的，而是根据消费时间，
+                    // 默认当消费时长大于MAXTIMECONSUMECONTINUOUSLY，默认60s后，本次消费任务结束，由消费组内其他线程继续消费。
                     final long beginTime = System.currentTimeMillis();
                     for (boolean continueConsume = true; continueConsume; ) {
                         if (this.processQueue.isDropped()) {
@@ -450,6 +479,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             break;
                         }
 
+                        //step 5 :每次从处理队列中按顺序取出consumeBatchSize消息，如果未取到消息，则设置continueConsume为false，本次消费任务结束。
                         final int consumeBatchSize =
                             ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
 
@@ -460,6 +490,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
                             ConsumeOrderlyStatus status = null;
 
+                            // step 7 : 执行消息消费钩子函数
                             ConsumeMessageContext consumeMessageContext = null;
                             if (ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.hasHook()) {
                                 consumeMessageContext = new ConsumeMessageContext();
@@ -474,6 +505,8 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                 ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.executeHookBefore(consumeMessageContext);
                             }
 
+                            // step 7 : 申请消息消费所,然后执行消息消费监听器
+                            // 调用业务方具体消息监听器执行真正的消息消费处理逻辑,并通知RocketMq消息消费结果
                             long beginTimestamp = System.currentTimeMillis();
                             ConsumeReturnType returnType = ConsumeReturnType.SUCCESS;
                             boolean hasException = false;
@@ -529,6 +562,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                 status = ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT;
                             }
 
+                            // step 8 : 执行消息消费钩子函数
                             if (ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.hasHook()) {
                                 consumeMessageContext.setStatus(status.toString());
                                 consumeMessageContext
@@ -539,6 +573,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             ConsumeMessageOrderlyService.this.getConsumerStatsManager()
                                 .incConsumeRT(ConsumeMessageOrderlyService.this.consumerGroup, messageQueue.getTopic(), consumeRT);
 
+                            // step 9 : 如果消息消费结果为Consum巳OrderlyStatus.SUCCESS，执行ProceeQueue的commit方法，并返回待更新的消息消费进度
                             continueConsume = ConsumeMessageOrderlyService.this.processConsumeResult(msgs, status, context, this);
                         } else {
                             continueConsume = false;

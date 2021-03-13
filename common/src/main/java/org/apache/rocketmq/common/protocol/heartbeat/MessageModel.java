@@ -26,6 +26,7 @@ package org.apache.rocketmq.common.protocol.heartbeat;
 public enum MessageModel {
     /**
      * broadcast
+     * 广播模式
      */
     BROADCASTING("BROADCASTING"),
     /**
